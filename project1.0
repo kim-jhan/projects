@@ -1,0 +1,306 @@
+// 영상처리 소프트웨어 Ver 0.01
+#define   _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <Windows.h> // 픽셀을 출력해주는 기능 포함.
+#include <math.h>
+#include <conio.h>
+
+// 함수 선언부 (이름만 나열)
+void print_menu(); void openlmage(); unsigned char** malloc2D(int, int); void displaylmage();
+void freeInputlmage(); void freeOutputlmage(); void equal_image(); void add_lmage();
+void del_lmage(); void bw_lmage(); void rev_lmage(); void lrmirr_lmage(); void hbmirr_lmage();
+void zoom_in(); void zoom_out(); void saveImage(); void Bilinear(); void rot_lmage(); void mathrot_lmage();
+void hpf_lmage(); void lpf_lmage();
+int temp = 512;
+
+// 전역변수 선언부
+unsigned char** inlmage = NULL, ** outlmage = NULL;
+int inH = 0, inW = 0, outH = 0, outW = 0;
+char fileName[200];
+// 윈도 화면용
+HWND  hwnd;  HDC  hdc;
+
+void main() {
+	char select = 0;
+	hwnd = GetForegroundWindow();   hdc = GetWindowDC(hwnd);
+	while (select != '2') {
+		print_menu();
+		select = _getche();
+		switch (select) {
+		case  '0':   openlmage();   break;
+		case  '1':      break;
+		case  'A':  case 'a':     openlmage();     break;
+		case  'B':  case 'b':     del_lmage();     break;
+		case  'C':  case 'c':     add_lmage();     break;
+		case  'D':  case 'd':     bw_lmage();      break;
+		case  'E':  case 'e':     rev_lmage();     break;
+		case  'F':  case 'f':     lrmirr_lmage();  break;
+		case  'G':  case 'g':     hbmirr_lmage();  break;
+		case  'J':  case 'j':     zoom_in();       break;
+		case  'L':  case 'l':     zoom_out();      break;
+		case  'M':  case 'm':     rot_lmage();     break;
+        case  'N':  case 'n':     hpf_lmage();     break;
+		case  'P':  case 'p':     lpf_lmage();     break;
+		default: "키를 잘못 누름..."; system("cls");
+		}
+	}
+	freeInputlmage(); freeOutputlmage();
+}
+void print_menu() {
+	puts("\t ## 디지털 영상처리 (Beta 2) ##");
+	puts("0.열기 1.저장 2.종료");
+	puts("A.동일영상 B.어둡게 C.밝게 D.흑백 E.반전 f.좌우반전 G.상하반전 ");
+	puts("J. 확대 L. 축소 M. 회전 ");
+    puts("N. 샤프닝 P. 블러링 ");
+
+}
+void openlmage() {
+	// 파일이름을 입력 받기.
+	strcpy(fileName, "C:\\images\\raw\\512\\");
+	char tmpName[100];
+	printf("\n 오픈할 파일명-->");  scanf("%s", tmpName);
+	strcat(fileName, tmpName);
+	strcat(fileName, ".raw");
+	//puts(fileName);
+	// 파일을 열고, 파일의 크기를 알아내기.
+	FILE* rfp;
+	rfp = fopen(fileName, "rb");
+	if (rfp == NULL) {
+		MessageBox(hwnd, L"파일명이 없어요", L"출력창", NULL);
+		return;
+	}
+	fseek(rfp, 0L, SEEK_END);
+	long fsize = ftell(rfp); // 예 : 262144
+	fclose(rfp); rfp = fopen(fileName, "rb");
+	// 기존에 작업한 것이 있으면 해제
+	freeInputlmage();
+
+	// 중요! 입력이미지의 높이, 폭 알아내기
+	inH = inW = (int)sqrt(fsize);
+	inlmage = malloc2D(inH, inW);
+	for (int i = 0; i < inH; i++)
+		fread(inlmage[i], sizeof(unsigned char), inW, rfp);
+	fclose(rfp);
+
+	equal_image();
+}
+unsigned char** malloc2D(int h, int w) {
+	unsigned char** p;
+	p = (unsigned char**)malloc(h * sizeof(unsigned char*));
+	for (int i = 0; i < h; i++)
+		p[i] = (unsigned char*)malloc(w * sizeof(unsigned char));
+	return p;
+}
+void displaylmage() {
+	system("cls");
+	unsigned char px;
+	for (int i = 0; i < outH; i++)
+		for (int k = 0; k < outW; k++) {
+			px = outlmage[i][k];
+			SetPixel(hdc, k + 50, i + 200, RGB(px, px, px));
+		}
+}
+void freeInputlmage() {
+	if (inlmage == NULL)
+		return;
+	for (int i = 0; i < inH; i++)
+		free(inlmage[i]);
+	free(inlmage);
+	inlmage = NULL;
+}
+void freeOutputlmage() {
+	if (outlmage == NULL)
+		return;
+	for (int i = 0; i < outH; i++)
+		free(outlmage[i]);
+	free(outlmage);
+	outlmage = NULL;
+}
+void saveImage() {
+	char sfname[200] = "C:\\images\\raw\\512";
+	char tmpFname[50];
+	printf("저장할 파일명-->"); scanf("%s", tmpFname);
+	strcat(sfname, tmpFname);
+	strcat(sfname, ".raw");
+	// printf("%s", sfname);
+	FILE* wfp = fopen(sfname, "wb");
+	for (int i = 0; i < outH; i++)
+		fwrite(outlmage[i], sizeof(unsigned char), outW, wfp);
+	fclose(wfp);
+	printf("%s 으로 저장됨", sfname);
+}
+
+void equal_image() {  // 동일영상 알고리즘
+	if (inlmage == NULL)
+		return;
+	// 기존에 작업한 것이 있으면 해제
+	freeOutputlmage();
+	// 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+	outH = inH;  outW = inW;
+	outlmage = malloc2D(outH, outW);
+	// *** 진짜 영상처리 알고리즘을 구현 ***
+	for (int i = 0; i < inH; i++)
+		for (int k = 0; k < inW; k++) {
+			outlmage[i][k] = inlmage[i][k];
+		}
+	/////////////////////////////////////////////
+	displaylmage();
+}
+
+void add_lmage() //밝게
+{
+	for (int i = 0; i < inH; i++) {
+		for (int k = 0; k < inW; k++) {
+			if ((inlmage[i][k] + 100) > 512)
+				outlmage[i][k] = 512;
+			else
+				outlmage[i][k] = inlmage[i][k] + 100;
+		}
+	}
+	displaylmage();
+}
+void del_lmage() // 어둡게
+{
+	for (int i = 0; i < inH; i++) {
+		for (int k = 0; k < inW; k++) {
+			if ((inlmage[i][k] - 50) < 0)
+				outlmage[i][k] = 0;
+			else
+				outlmage[i][k] = inlmage[i][k];
+		}
+	}
+	displaylmage();
+}
+void bw_lmage() //흑백
+{
+	for (int i = 0; i < inH; i++)
+		for (int k = 0; k < inW; k++) {
+			if (inlmage[i][k] > 127)
+				outlmage[i][k] = 255;
+			else
+				outlmage[i][k] = 0;
+		}
+	displaylmage();
+}
+void rev_lmage() //반전
+{
+	for (int i = 0; i < inH; i++)
+		for (int k = 0; k < inW; k++) {
+			if (outlmage[i][k] = 255 - inlmage[i][k]);
+		}
+	displaylmage();
+}
+
+void lrmirr_lmage()// 좌우
+{
+	for (int i = 0; i < inH; i++)
+		for (int k = 0; k < inW; k++) {
+			outlmage[i][k] = inlmage[i][temp - 1 - k];
+		}
+	displaylmage();
+}
+void hbmirr_lmage() //상하
+{
+	for (int i = 0; i < inH; i++)
+		for (int k = 0; k < inW; k++) {
+			outlmage[i][k] = inlmage[inW - 1 - i][k];
+		}
+	displaylmage();
+}
+void zoom_out() // 축소 알고리즘
+{  
+	if (inlmage == NULL)
+		return;
+	// 기존에 작업한 것이 있으면 해제
+	freeOutputlmage();
+	int scale;
+	printf("축소 배율-->:"); 
+	scanf("%d", &scale);
+	// 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+	outH = inH / scale;  
+	outW = inW / scale;
+	outlmage = malloc2D(outH, outW);
+	int sum;
+	// *** 진짜 영상처리 알고리즘을 구현 ***
+	for (int i = 0; i < inH; i++)
+		for (int k = 0; k < inW; k++) {
+			sum = 0;
+			for (int i = 0; i < scale; i++)
+				for (int m = 0; m < scale; m++) {
+					sum = sum + inlmage[i * scale + k][k * scale + m];
+				}
+			outlmage[i][k] = (unsigned char)(sum / (float)(scale * scale));
+		}
+    displaylmage();
+}
+void zoom_in()  //확대 알고리즘
+	{
+			if (inlmage == NULL)
+				return;
+			// 기존에 작업한 것이 있으면 해제
+			freeOutputlmage();
+			int scale;
+			printf("확대 배율-->"); scanf("%d", &scale);
+			// 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+			outH = inH * scale;  
+			outW = inW * scale;
+			outlmage = malloc2D(outH, outW);
+			// *** 진짜 영상처리 알고리즘을 구현 ***
+			for (int i = 0; i < outH; i++)
+				for (int k = 0; k < outW; k++) {
+					outlmage[i][k] = inlmage[i / scale][k / scale];
+		}
+	displaylmage();
+	}
+  
+  void hpf_lmage() {	// 샤프닝
+
+	double HPF[3][3] = {		//high 마스크 설정
+		{-1, -1, -1},
+		{-1, 8, -1},
+		{-1, -1, -1} };
+	double sum;
+	for (int i = 1; i < inH - 1; i++) {
+		for (int k = 1; k < inW - 1; k++) {
+			sum = 0;
+			for (int n = 0; n < 3; n++) {
+				for (int m = 0; m < 3; m++) {
+					sum = sum + inlmage[i - 1 + n][k - 1 + m] * HPF[n][m];
+				}
+			}
+			if (sum > 255)
+				sum = 255;
+			if (sum < 0)
+				sum = 0;
+			outlmage[i][k] = (unsigned char)sum;
+		}
+	}
+	displaylmage();
+}
+void lpf_lmage() {	// 블러링
+
+	double LPF[3][3] = {		//low 마스크 설정
+		{1, 1, 1},
+		{1, 8, 1},
+		{1, 1, 1} };
+	double sum;
+	for (int i = 1; i < inH - 1; i++) {
+		for (int k = 1; k < inW - 1; k++) {
+			sum = 0;
+			for (int n = 0; n < 3; n++) {
+				for (int m = 0; m < 3; m++) {
+					sum = sum + inlmage[i - 1 + n][k - 1 + m] * LPF[n][m];
+				}
+			}
+			if (sum > 255)
+				sum = 255;
+			else if (sum < 0)
+				sum = 0;
+			else sum = sum / 9;
+			outlmage[i][k] = (unsigned char)sum;
+		}
+	}
+	displaylmage();
+}
