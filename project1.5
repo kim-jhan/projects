@@ -1,0 +1,587 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.IO;
+
+namespace Day012_01_퀴즈1
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        //전역 함수부
+        static byte[,] inImage, outImage;
+        static int inH, inW, outH, outW;
+        static string filename;
+        static Bitmap paper; //그림을 찍을 종이
+
+
+        private void 열기ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            openImage();
+        }
+
+        private void 밝기ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            bright_image();
+        }
+
+        private void 어두운이미지ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Del_Image();
+        }
+
+        private void 흑백이미지ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            bw_image();
+        }
+
+
+        private void 반전이미지ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            rev_Image();
+        }
+
+        private void 상하ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            hbmirr_lmage();
+        }
+
+        private void 좌우ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            lrmirr_Image();
+        }
+
+        private void 확대ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            zoom_in();
+        }
+
+        private void 축소ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            zoom_out();
+        }
+
+        private void 엠보싱ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            emboss_image();
+        }
+
+        private void 블러링ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            blurr_image();
+        }
+
+        private void 경계선ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            edge_image();
+        }
+        private void 히스토그램스트래칭ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            histo_stretch();
+        }
+        private void 앤드인탐색ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            end_in_search();
+        }
+        private void 평활화ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            histo_equal();
+        }
+void openImage()
+        {
+
+            OpenFileDialog ofd = new OpenFileDialog();  // 객체 생성
+            ofd.ShowDialog();
+            filename = ofd.FileName;
+
+            BinaryReader br = new BinaryReader(File.Open(filename, FileMode.Open));
+            // 파일 크기 알아내기 (?)
+            long fsize = new FileInfo(filename).Length;
+            // 중요! 입력이미지의 높이, 폭 알아내기
+            inH = inW = (int)Math.Sqrt(fsize);
+            inImage = new byte[inH, inW]; // 메모리 할당
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                    inImage[i, k] = br.ReadByte();
+            br.Close();
+
+            equal_image();
+
+        }
+        void displayImage()
+        {
+            // 벽, 종이, 게시판 크기 조절
+            paper = new Bitmap(outH, outW); // 종이
+            pictureBox1.Size = new Size(outH, outW); // 캔버스
+            this.Size = new Size(outH + 20, outW + 80); // 벽
+
+
+            Color pen; //펜
+            for (int i = 0; i < outH; i++)
+                for (int k = 0; k < outW; k++)
+                {
+                    byte data = outImage[i, k]; // 잉크
+                    pen = Color.FromArgb(data, data, data);
+                    paper.SetPixel(k, i, pen);
+
+
+                }
+            pictureBox1.Image = paper; // 게시판에 종이를 붙이기            
+            toolStripStatusLabel1.Text =
+            outH.ToString() + 'x' + outW.ToString() + "  " + filename;
+        }
+        /////영상 처리 함수부
+        void equal_image()
+        {
+            if (inImage == null)
+                return;
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH; outW = inW;
+            outImage = new byte[outH, outW];
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    outImage[i, k] = inImage[i, k];
+                }
+            /////////////////////////////////////////////
+            displayImage();
+        }
+        double getValue()
+        {
+            suform1 sub = new suform1(); // 서브폼 준비
+            if (sub.ShowDialog() == DialogResult.Cancel)
+                return 0;
+            double value = (int)sub.numericUpDown1.Value;
+            return value;
+        }
+        //void saveImage()
+        //{
+            //OpenFileDialog ofd = new OpenFileDialog();  // 객체 생성
+            //ofd.ShowDialog("저장할 파일명 --> ");
+            //string tmpName = Console.ReadLine();
+
+            //filename = "c:/images/raw/512/" + tmpName + ".raw";
+            //BinaryWriter bw = new BinaryWriter(File.Open("filename", FileMode.Create));
+            //for (int i = 0; i < outH; i++)
+            //    for (int k = 0; k < outW; k++)
+            //        bw.Write(outImage[i, k]);
+            //bw.Close();
+            //Console.WriteLine(filename + "로 저장되었습니다.");
+
+        //}
+        void bright_image()
+        {
+            if (inImage == null)
+                return;
+            int value = (int)getValue();
+
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH; outW = inW;
+            outImage = new byte[outH, outW];
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    outImage[i, k] = (byte)(inImage[i, k] + value);
+                }
+            /////////////////////////////////////////////
+            displayImage();
+        }
+        void Del_Image() // 어둡게
+        {
+            int value = (int)getValue();
+
+            for (int i = 0; i < inH; i++)
+            {
+                for (int k = 0; k < inW; k++)
+                {
+                    if ((inImage[i, k] - value) < 0)
+                        outImage[i, k] = 0;
+                    else
+                        outImage[i, k] = inImage[i, k];
+                }
+            }
+            displayImage();
+        }
+        void bw_image()
+        {
+            if (inImage == null)
+                return;
+            int value = (int)getValue();
+
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH; outW = inW;
+            outImage = new byte[outH, outW];
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    if (inImage[i, k] > value)
+                        outImage[i, k] = 255;
+                    else
+                        outImage[i, k] = 0;
+                }
+            /////////////////////////////////////////////
+            displayImage();
+        }
+        void rev_Image() //반전
+        {
+            int value = (int)getValue();
+
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    outImage[i, k] = (byte)(value - inImage[i, k]);
+                }
+            displayImage();
+        }
+void lrmirr_Image()// 좌우
+        {
+
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    outImage[i, k] = inImage[i, (outW - 1 - k)];
+                }
+            displayImage();
+        }
+        void hbmirr_lmage() //상하
+        {
+
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    outImage[i, k] = inImage[(inW - 1 - i), k];
+                }
+            displayImage();
+        }
+
+        void zoom_in()  //확대 알고리즘
+        {
+            Console.WriteLine("확대 배율-->");
+            int scale = (int)getValue();
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH * scale;
+            outW = inW * scale;
+            outImage = new byte[outH, outW];
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            for (int i = 0; i < outH; i++)
+                for (int k = 0; k < outW; k++)
+                {
+                    outImage[i, k] = inImage[(i / scale), (k / scale)];
+                }
+            displayImage();
+        }
+
+        void zoom_out() // 축소 알고리즘
+        {
+            Console.WriteLine("축소 배율-->");
+            int scale = (int)getValue();
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+
+            outH = inH / scale;
+            outW = inW / scale;
+            outImage = new byte[outH, outW];
+            int sum;
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            for (int i = 0; i < inH; i++)
+            {
+                for (int k = 0; k < inW; k++)
+                {
+                    outImage[(i / scale), (k / scale)] = inImage[i, k];
+                }
+            }
+            displayImage();
+        }
+  void emboss_image()
+        {
+            if (inImage == null)
+                return;
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH; outW = inW;
+            outImage = new byte[outH, outW];
+            // 화소영역 처리
+            // 중요! 마스크 결정
+            const int MSIZE = 3;
+            double[,] mask = {        { -1.0, 0.0, 0.0 },
+                                            {  0.0, 0.0, 0.0 },
+                                            {  0.0, 0.0, 1.0 }   };
+            // 임시 입력, 출력 메모리 할당
+            double[,] tmpInput = new double[inH + 2, inW + 2];
+            double[,] tmpOutput = new double[outH, outW];
+
+            // 임시 입력을 중간값인 127로 초기화
+            for (int i = 0; i < inH + 2; i++)
+                for (int k = 0; k < inW + 2; k++)
+                    tmpInput[i, k] = 127.0;
+            // 입력 --> 임시 입력
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                    tmpInput[i + 1, k + 1] = inImage[i, k];
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            double S = 0.0;
+            for (int i = 0; i < inH; i++)
+            {
+                for (int k = 0; k < inW; k++)
+                {
+                    for (int m = 0; m < MSIZE; m++)
+                        for (int n = 0; n < MSIZE; n++)
+                            S += tmpInput[i + m, k + m] * mask[m, n];
+                    tmpOutput[i, k] = S;
+                    S = 0.0;
+                }
+            }
+            // 후처리 : Mask의 합이 0이면 127을 더하기.
+            for (int i = 0; i < outH; i++)
+                for (int k = 0; k < outW; k++)
+                    tmpOutput[i, k] += 127.0;
+            // 임시 출력 --> 원래 출력
+            for (int i = 0; i < outH; i++)
+                for (int k = 0; k < outW; k++)
+                {
+                    double d = tmpOutput[i, k];
+                    if (d > 255.0)
+                        d = 255.0;
+                    else if (d < 0.0)
+                        d = 0.0;
+                    outImage[i, k] = (byte)d;
+                }
+            /////////////////////////////////////////////
+            displayImage();
+        }
+
+        void blurr_image()
+        {
+            if (inImage == null)
+                return;
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH; outW = inW;
+            outImage = new byte[outH, outW];
+            // 화소영역 처리
+            // 중요! 마스크 결정
+            const int MSIZE = 3;
+            double[,] mask = {        {  1/9.0, 1/9.0, 1/9.0 },
+                                            {  1/9.0, 1/9.0, 1/9.0  },
+                                            {  1/9.0, 1/9.0, 1/9.0  }   };
+            // 임시 입력, 출력 메모리 할당
+            double[,] tmpInput = new double[inH + 2, inW + 2];
+            double[,] tmpOutput = new double[outH, outW];
+
+            // 임시 입력을 중간값인 127로 초기화
+            for (int i = 0; i < inH + 2; i++)
+                for (int k = 0; k < inW + 2; k++)
+                    tmpInput[i, k] = 127.0;
+            // 입력 --> 임시 입력
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                    tmpInput[i + 1, k + 1] = inImage[i, k];
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            double S = 0.0;
+            for (int i = 0; i < inH; i++)
+            {
+                for (int k = 0; k < inW; k++)
+                {
+                    for (int m = 0; m < MSIZE; m++)
+                        for (int n = 0; n < MSIZE; n++)
+                            S += tmpInput[i + m, k + n] * mask[m, n];
+                    tmpOutput[i, k] = S;
+                    S = 0.0;
+                }
+            }
+            // 후처리 : Mask의 합이 0이면 127을 더하기.
+            //for (int i = 0; i < outH; i++)
+            //    for (int k = 0; k < outW; k++)
+            //        tmpOutput[i, k] += 127.0;
+            // 임시 출력 --> 원래 출력
+            for (int i = 0; i < outH; i++)
+                for (int k = 0; k < outW; k++)
+                {
+                    double d = tmpOutput[i, k];
+                    if (d > 255.0)
+                        d = 255.0;
+                    else if (d < 0.0)
+                        d = 0.0;
+                    outImage[i, k] = (byte)d;
+                }
+            /////////////////////////////////////////////
+            displayImage();
+        }
+ void edge_image()
+        {
+            if (inImage == null)
+                return;
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH; outW = inW;
+            outImage = new byte[outH, outW];
+            // 화소영역 처리
+            // 중요! 마스크 결정
+            const int MSIZE = 3;
+            double[,] mask = {        { 0.0, -1.0, 0.0 },
+                                            {  0.0, 1.0, 0.0 },
+                                            {  0.0, 0.0, 0.0 }   };
+            // 임시 입력, 출력 메모리 할당
+            double[,] tmpInput = new double[inH + 2, inW + 2];
+            double[,] tmpOutput = new double[outH, outW];
+
+            // 임시 입력을 중간값인 127로 초기화
+            for (int i = 0; i < inH + 2; i++)
+                for (int k = 0; k < inW + 2; k++)
+                    tmpInput[i, k] = 127.0;
+            // 입력 --> 임시 입력
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                    tmpInput[i + 1, k + 1] = inImage[i, k];
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            double S = 0.0;
+            for (int i = 0; i < inH; i++)
+            {
+                for (int k = 0; k < inW; k++)
+                {
+                    for (int m = 0; m < MSIZE; m++)
+                        for (int n = 0; n < MSIZE; n++)
+                            S += tmpInput[i + m, k + n] * mask[m, n];
+                    tmpOutput[i, k] = S;
+                    S = 0.0;
+                }
+            }
+            // 후처리 : Mask의 합이 0이면 127을 더하기.
+            //for (int i = 0; i < outH; i++)
+            //    for (int k = 0; k < outW; k++)
+            //        tmpOutput[i, k] += 127.0;
+            // 임시 출력 --> 원래 출력
+            for (int i = 0; i < outH; i++)
+                for (int k = 0; k < outW; k++)
+                {
+                    double d = tmpOutput[i, k];
+                    if (d > 255.0)
+                        d = 255.0;
+                    else if (d < 0.0)
+                        d = 0.0;
+                    outImage[i, k] = (byte)d;
+                }
+            /////////////////////////////////////////////
+            displayImage();
+        }
+        void histo_stretch() // 히스토그램 스트래칭
+        {
+            if (inImage == null)
+                return;
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH; outW = inW;
+            outImage = new byte[outH, outW];
+
+            // 수식 :
+            // Out = (In - min) / (max - min) * 255.0
+            byte min_val = inImage[0, 0], max_val = inImage[0, 0];
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    if (min_val > inImage[i, k])
+                        min_val = inImage[i, k];
+                    if (max_val < inImage[i, k])
+                        max_val = inImage[i, k];
+                }
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    // Out = (In - min) / (max - min) * 255.0
+                    outImage[i, k] = (byte)
+                        ((double)(inImage[i, k] - min_val) / (max_val - min_val) * 255.0);
+                }
+            /////////////////////////////////////////////
+            displayImage();
+        }
+        void end_in_search() // 앤드인 탐색
+        {
+            if (inImage == null)
+                return;
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH; outW = inW;
+            outImage = new byte[outH, outW];
+
+            // 수식 :
+            // Out = (In - min) / (max - min) * 255.0
+            byte min_val = inImage[0, 0], max_val = inImage[0, 0];
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    if (min_val > inImage[i, k])
+                        min_val = inImage[i, k];
+                    if (max_val < inImage[i, k])
+                        max_val = inImage[i, k];
+                }
+            // min, max 값을 강제 변경
+            min_val += 50;
+            min_val -= 50;
+
+            // *** 진짜 영상처리 알고리즘을 구현 ***
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    // Out = (In - min) / (max - min) * 255.0
+                    double value = 
+                        ((double)(inImage[i, k] - min_val) / (max_val - min_val) * 255.0);
+                    if (value > 255)
+                        value = 255;
+                    else if
+                        (value < 0)
+                        value = 0;
+                    outImage[i, k] = (byte)value;
+                }
+            /////////////////////////////////////////////
+            displayImage();
+        }
+ void histo_equal() // 히스토그램 평활화
+        {
+            if (inImage == null)
+                return;
+            // 중요! 출력이미지의 높이, 폭을 결정  --> 알고리즘에 영향
+            outH = inH; outW = inW;
+            outImage = new byte[outH, outW];
+
+            //1.히스토그램 생성
+            int[] histo = new int[256];
+            for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                    histo[inImage[i, k]]++;
+
+            //2.누적 히스토그램
+            int[] sumHisto = new int[256];
+            int sum_val = 0;
+            for(int i =0; i< 256; i++)
+            {
+                sum_val += histo[i];
+                sumHisto[i] = sum_val;
+            }
+
+            //3.정규화된 누적 히스토그램
+            //n=(누적합/(행*열)) * 255.0
+            double[] normalHisto = new double[256];
+            for (int i = 0; i < 256; i++)
+            {
+                normalHisto[i] = (Double)sumHisto[i] / (inH * inW) * 255.0;
+            }
+
+                /// *** 진짜 영상처리 알고리즘을 구현 ***
+                for (int i = 0; i < inH; i++)
+                for (int k = 0; k < inW; k++)
+                {
+                    outImage[i, k] = (byte)normalHisto[inImage[i, k]];
+                }
+            /////////////////////////////////////////////
+            displayImage();
+        }
+    }
+}
